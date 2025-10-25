@@ -20,12 +20,17 @@ async def root():
 
 @app.get("/health")
 async def health():
+    conn = db.get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM restaurants WHERE is_active=1").fetchone()[0]
+    conn.close()
+    
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "ollama": settings.OLLAMA_MODEL,
         "whisper": settings.WHISPER_MODEL,
-        "tts": "elevenlabs"
+        "tts": "elevenlabs",
+        "restaurants": count
     }
 
 @app.websocket("/ws/voice/{call_sid}")
