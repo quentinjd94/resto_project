@@ -1,5 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 import uvicorn
 import json
 from datetime import datetime
@@ -108,7 +108,7 @@ async def voice_webhook(request: Request):
     </Connect>
 </Response>"""
     
-    return Response(content=twiml, media_type="application/xml")
+    return PlainTextResponse(content=twiml, media_type="application/xml")
 
 @app.websocket("/ws/voice/{call_sid}")
 async def voice_handler(websocket: WebSocket, call_sid: str):
