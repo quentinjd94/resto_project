@@ -195,36 +195,42 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                     
                     print(f"👤 [{call_sid}] User: {user_text}")
                     
-                    # LLM
-                    print(f"🧠 [{call_sid}] Processing...")
-                    ai_response = await llm_service.query(
+                    # 4. LLM - Ollama STREAMING + TTS en parallèle
+                    print(f"🧠 [{call_sid}] Processing with streaming...")
+
+                    full_response = ""
+
+                    async for chunk in llm_service.query_stream(
                         prompt=user_text,
                         system_prompt=system_prompt,
                         history=conversation_state["history"]
-                    )
-                    
-                    print(f"🤖 [{call_sid}] AI: {ai_response}")
-                    
+                    ):
+                        print(f"🤖 [{call_sid}] Chunk: {chunk}")
+                        full_response += " " + chunk
+    
+                        # TTS du chunk immédiatement
+                        print(f"🔊 [{call_sid}] Synthesizing chunk...")
+                        audio_chunk = await tts_service.synthesize(chunk)
+    
+                            if audio_chunk and stream_sid:
+                                # Envoyer l'audio à Twilio IMMÉDIATEMENT
+                                await websocket.send_text(json.dumps({
+                                "event": "media",
+                                "streamSid": stream_sid,
+                                "media": {
+                                    "payload": base64.b64encode(audio_chunk).decode('utf-8')
+                                }
+                            }))
+                            print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk)} bytes)")
+
+                    print(f"🤖 [{call_sid}] Full response: {full_response}")
+
+                    # Sauvegarder dans l'historique
                     conversation_state["history"].append({
                         "user": user_text,
-                        "assistant": ai_response
+                        "assistant": full_response.strip()
                     })
                     
-                    # TTS
-                    print(f"🔊 [{call_sid}] Synthesizing...")
-                    audio_response = await tts_service.synthesize(ai_response)
-                    
-                    if audio_response:
-                        # Envoyer l'audio à Twilio
-                        await websocket.send_text(json.dumps({
-                            "event": "media",
-                            "streamSid": stream_sid,
-                            "media": {
-                                "payload": base64.b64encode(audio_response).decode('utf-8')
-                            }
-                        }))
-                        print(f"✅ [{call_sid}] Response sent ({len(audio_response)} bytes)\n")
-            
             # 3. STOP event
             elif event == "stop":
                 print(f"🔴 [{call_sid}] Stream stopped")
