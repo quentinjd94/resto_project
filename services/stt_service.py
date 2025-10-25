@@ -6,7 +6,6 @@ class STTService:
         if not settings.DEEPGRAM_API_KEY:
             raise ValueError("DEEPGRAM_API_KEY not set in .env!")
         
-        # Initialiser avec config dict
         self.client = DeepgramClient(api_key=settings.DEEPGRAM_API_KEY)
         print("✅ Deepgram STT ready!")
     
@@ -15,7 +14,7 @@ class STTService:
         Transcrit audio mulaw → texte français avec Deepgram
         """
         try:
-            # Options en dict pur
+            # Options
             options = {
                 "model": "nova-2",
                 "language": "fr",
@@ -26,17 +25,15 @@ class STTService:
             # Source
             source = {"buffer": audio_bytes}
             
-            # Transcription
-            response = self.client.listen.prerecorded.v("1").transcribe_file(
+            # Transcription avec la bonne syntaxe: .v1() ou .v2()
+            response = self.client.listen.v1().transcribe_file(
                 source, options
             )
             
-            # Parser la réponse (peut être un dict ou un objet)
+            # Parser la réponse
             if hasattr(response, 'results'):
-                # C'est un objet
                 transcript = response.results.channels[0].alternatives[0].transcript
             else:
-                # C'est un dict
                 transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
             
             return transcript.strip()
