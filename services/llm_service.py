@@ -13,13 +13,16 @@ class LLMService:
         """
         Génère la réponse token par token (streaming)
         """
+        print(f"🔍 [LLM] Starting stream...")
+        print(f"🔍 [LLM] Prompt: {prompt[:100]}")
+        
         try:
             # Construire le prompt pour Mistral Instruct
             messages = []
             
             # System prompt
             if system_prompt:
-                messages.append(f"[INST] {system_prompt} [/INST]")
+                messages.append(f"[INST] {system_prompt[:200]}... [/INST]")
             
             # History
             if history:
@@ -30,6 +33,9 @@ class LLMService:
             messages.append(f"[INST] {prompt} [/INST]")
             
             full_prompt = "\n".join(messages)
+            
+            print(f"🔍 [LLM] Full prompt length: {len(full_prompt)} chars")
+            print(f"🔍 [LLM] Sending request to Ollama...")
             
             # Request avec stream=True
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -45,9 +51,12 @@ class LLMService:
                     }
                 }) as response:
                     
+                    print(f"🔍 [LLM] Response status: {response.status_code}")
+                    
                     buffer = ""
                     word_buffer = ""
                     word_count = 0
+                    token_count = 0
                     
                     # Lire byte par byte et parser les lignes JSON
                     async for chunk in response.aiter_bytes():
@@ -62,11 +71,16 @@ class LLMService:
                                         token = data.get("response", "")
                                         
                                         if token:
+                                            token_count += 1
+                                            if token_count <= 3:
+                                                print(f"🔍 [LLM] Token {token_count}: '{token}'")
+                                            
                                             word_buffer += token
                                             
                                             # Yield tous les 4-6 mots ou à chaque ponctuation forte
                                             if token in ['.', '!', '?', '\n']:
                                                 if word_buffer.strip():
+                                                    print(f"📤 [LLM] Yielding: {word_buffer.strip()}")
                                                     yield word_buffer.strip()
                                                     word_buffer = ""
                                                     word_count = 0
@@ -74,22 +88,28 @@ class LLMService:
                                                 word_count += 1
                                                 if word_count >= 5:
                                                     if word_buffer.strip():
+                                                        print(f"📤 [LLM] Yielding: {word_buffer.strip()}")
                                                         yield word_buffer.strip()
                                                         word_buffer = ""
                                                         word_count = 0
                                         
                                         # Si done, yield le reste
                                         if data.get("done", False):
+                                            print(f"🔍 [LLM] Done! Total tokens: {token_count}")
                                             if word_buffer.strip():
+                                                print(f"📤 [LLM] Yielding final: {word_buffer.strip()}")
                                                 yield word_buffer.strip()
                                             return
                                     
-                                    except json.JSONDecodeError:
+                                    except json.JSONDecodeError as e:
+                                        print(f"⚠️ [LLM] JSON decode error: {e}")
                                         pass
                                 
                                 buffer = ""
                             else:
                                 buffer += char
+                    
+                    print(f"🔍 [LLM] Stream ended. Total tokens: {token_count}")
         
         except Exception as e:
             print(f"❌ LLM Stream Error: {e}")
