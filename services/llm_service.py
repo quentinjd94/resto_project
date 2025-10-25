@@ -27,7 +27,7 @@ class LLMService:
                     "stream": False,
                     "options": {
                         "temperature": 0.7,
-                        "top_p": 0.9
+                        "top_p": 0.9,
                         "num_predict": 100
                     }
                 })
