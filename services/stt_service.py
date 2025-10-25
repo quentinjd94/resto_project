@@ -1,61 +1,55 @@
-from faster_whisper import WhisperModel
+from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 from config import settings
-import io
-import numpy as np
-import wave
-import audioop
+import asyncio
 
 class STTService:
     def __init__(self):
-        print(f"Loading Whisper {settings.WHISPER_MODEL}...")
-        self.model = WhisperModel(
-            settings.WHISPER_MODEL,
-            device=settings.WHISPER_DEVICE,
-            compute_type="float16"
-        )
-        print("✅ Whisper loaded!")
+        if not settings.DEEPGRAM_API_KEY:
+            raise ValueError("DEEPGRAM_API_KEY not set in .env!")
+        
+        self.client = DeepgramClient(settings.DEEPGRAM_API_KEY)
+        print("✅ Deepgram STT ready!")
     
     async def transcribe(self, audio_bytes: bytes) -> str:
         """
-        Transcrit audio bytes → texte français
-        Twilio envoie en mulaw 8kHz, on doit convertir en PCM 16kHz
+        Transcrit audio mulaw → texte français avec Deepgram
+        Ultra-rapide et précis (niveau ChatGPT)
         """
         try:
-            # Twilio envoie en mulaw 8000 Hz mono
-            # On doit convertir en PCM linéaire
+            # Deepgram accepte directement le mulaw
+            # Pas besoin de conversion !
             
-            # 1. Convertir mulaw → PCM linéaire 16-bit
-            pcm_data = audioop.ulaw2lin(audio_bytes, 2)  # 2 = 16-bit samples
-            
-            # 2. Resample 8kHz → 16kHz (Whisper préfère 16kHz)
-            pcm_16k, _ = audioop.ratecv(
-                pcm_data,
-                2,      # sample width (16-bit)
-                1,      # channels (mono)
-                8000,   # input rate
-                16000,  # output rate (16kHz)
-                None
+            # Options de transcription
+            options = PrerecordedOptions(
+                model="nova-2",  # Modèle le plus récent et précis
+                language="fr",   # Français
+                smart_format=True,  # Ponctuation automatique
+                punctuate=True,
+                diarize=False,  # Pas besoin de distinguer les speakers
+                utterances=False
             )
             
-            # 3. Convertir en numpy array float32 normalisé
-            audio_np = np.frombuffer(pcm_16k, dtype=np.int16).astype(np.float32) / 32768.0
+            # Préparer l'audio
+            payload: FileSource = {
+                "buffer": audio_bytes,
+            }
             
-            # 4. Transcription avec Whisper
-            segments, info = self.model.transcribe(
-                audio_np,
-                language="fr",
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500)
+            # Transcription (async)
+            response = await asyncio.to_thread(
+                self.client.listen.prerecorded.v("1").transcribe_file,
+                payload,
+                options
             )
             
-            # 5. Joindre tous les segments
-            text = " ".join([segment.text for segment in segments])
+            # Extraire le texte
+            if response.results and response.results.channels:
+                transcript = response.results.channels[0].alternatives[0].transcript
+                return transcript.strip()
             
-            return text.strip()
+            return ""
         
         except Exception as e:
-            print(f"❌ STT Error: {e}")
+            print(f"❌ Deepgram STT Error: {e}")
             import traceback
             traceback.print_exc()
             return ""

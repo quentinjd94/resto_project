@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     WHISPER_MODEL: str = "large-v3"
     WHISPER_DEVICE: str = "cuda"
     
+    DEEPGRAM_API_KEY: str = ""
+
+    REDIS_URL: str = "redis://localhost:6379"
+
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+    
     class Config:
         env_file = ".env"
 
