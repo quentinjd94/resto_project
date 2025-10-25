@@ -1,54 +1,57 @@
-import httpx
+import assemblyai as aai
 from config import settings
+import tempfile
+import os
 
 class STTService:
     def __init__(self):
-        if not settings.DEEPGRAM_API_KEY:
-            raise ValueError("DEEPGRAM_API_KEY not set in .env!")
+        if not settings.ASSEMBLYAI_API_KEY:
+            raise ValueError("ASSEMBLYAI_API_KEY not set in .env!")
         
-        self.api_key = settings.DEEPGRAM_API_KEY
-        self.url = "https://api.deepgram.com/v1/listen"
-        print("✅ Deepgram STT ready!")
+        # Configurer AssemblyAI
+        aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
+        
+        # Config de transcription
+        self.config = aai.TranscriptionConfig(
+            language_code="fr",  # Français
+            punctuate=True,
+            format_text=True,
+            speech_model=aai.SpeechModel.best  # Meilleur modèle
+        )
+        
+        print("✅ AssemblyAI STT ready!")
     
     async def transcribe(self, audio_bytes: bytes) -> str:
         """
-        Transcrit audio mulaw → texte français avec Deepgram REST API
+        Transcrit audio mulaw → texte français avec AssemblyAI
+        Qualité ChatGPT niveau
         """
         try:
-            # Paramètres
-            params = {
-                "model": "nova-2",
-                "language": "fr",
-                "smart_format": "true",
-                "punctuate": "true"
-            }
+            # AssemblyAI nécessite un fichier temporaire
+            with tempfile.NamedTemporaryFile(suffix='.mulaw', delete=False) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = tmp.name
             
-            # Headers
-            headers = {
-                "Authorization": f"Token {self.api_key}",
-                "Content-Type": "audio/mulaw"
-            }
-            
-            # Requête POST
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    self.url,
-                    params=params,
-                    headers=headers,
-                    content=audio_bytes
-                )
+            try:
+                # Transcription
+                transcriber = aai.Transcriber(config=self.config)
+                transcript = transcriber.transcribe(tmp_path)
                 
-                if response.status_code != 200:
-                    print(f"❌ Deepgram API error: {response.status_code} - {response.text}")
+                # Vérifier le statut
+                if transcript.status == aai.TranscriptStatus.error:
+                    print(f"❌ AssemblyAI Error: {transcript.error}")
                     return ""
                 
-                # Parser JSON
-                data = response.json()
-                transcript = data['results']['channels'][0]['alternatives'][0]['transcript']
-                return transcript.strip()
+                # Retourner le texte
+                return transcript.text.strip() if transcript.text else ""
+            
+            finally:
+                # Nettoyer le fichier temporaire
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
         
         except Exception as e:
-            print(f"❌ Deepgram Error: {e}")
+            print(f"❌ AssemblyAI Error: {e}")
             import traceback
             traceback.print_exc()
             return ""

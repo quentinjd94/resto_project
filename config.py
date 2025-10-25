@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
     
+    # AssemblyAI
+    ASSEMBLYAI_API_KEY: str = ""
+    
     # Whisper
     WHISPER_MODEL: str = "large-v3"
     WHISPER_DEVICE: str = "cuda"
@@ -26,7 +29,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
-    
+
     class Config:
         env_file = ".env"
 
