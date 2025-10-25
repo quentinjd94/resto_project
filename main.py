@@ -212,24 +212,24 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                         print(f"🔊 [{call_sid}] Synthesizing chunk...")
                         audio_chunk = await tts_service.synthesize(chunk)
     
-                            if audio_chunk and stream_sid:
-                                # Envoyer l'audio à Twilio IMMÉDIATEMENT
-                                await websocket.send_text(json.dumps({
-                                "event": "media",
-                                "streamSid": stream_sid,
-                                "media": {
-                                    "payload": base64.b64encode(audio_chunk).decode('utf-8')
-                                }
-                            }))
-                            print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk)} bytes)")
+                        if audio_chunk and stream_sid:
+                            # Envoyer l'audio à Twilio IMMÉDIATEMENT
+                            await websocket.send_text(json.dumps({
+                            "event": "media",
+                            "streamSid": stream_sid,
+                            "media": {
+                                "payload": base64.b64encode(audio_chunk).decode('utf-8')
+                            }
+                        }))
+                        print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk)} bytes)")
 
-                    print(f"🤖 [{call_sid}] Full response: {full_response}")
+                print(f"🤖 [{call_sid}] Full response: {full_response}")
 
-                    # Sauvegarder dans l'historique
-                    conversation_state["history"].append({
-                        "user": user_text,
-                        "assistant": full_response.strip()
-                    })
+                # Sauvegarder dans l'historique
+                conversation_state["history"].append({
+                    "user": user_text,
+                    "assistant": full_response.strip()
+                })
                     
             # 3. STOP event
             elif event == "stop":
