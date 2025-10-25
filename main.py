@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import asyncio
 import base64
+from database import db
 
 from config import settings
 from services import stt_service, tts_service, llm_service, SYSTEM_PROMPT
