@@ -1,4 +1,4 @@
-from deepgram import DeepgramClient
+import httpx
 from config import settings
 
 class STTService:
@@ -6,37 +6,46 @@ class STTService:
         if not settings.DEEPGRAM_API_KEY:
             raise ValueError("DEEPGRAM_API_KEY not set in .env!")
         
-        self.client = DeepgramClient(api_key=settings.DEEPGRAM_API_KEY)
+        self.api_key = settings.DEEPGRAM_API_KEY
+        self.url = "https://api.deepgram.com/v1/listen"
         print("✅ Deepgram STT ready!")
     
     async def transcribe(self, audio_bytes: bytes) -> str:
         """
-        Transcrit audio mulaw → texte français avec Deepgram
+        Transcrit audio mulaw → texte français avec Deepgram REST API
         """
         try:
-            # Options
-            options = {
+            # Paramètres
+            params = {
                 "model": "nova-2",
                 "language": "fr",
-                "smart_format": True,
-                "punctuate": True
+                "smart_format": "true",
+                "punctuate": "true"
             }
             
-            # Source
-            source = {"buffer": audio_bytes}
+            # Headers
+            headers = {
+                "Authorization": f"Token {self.api_key}",
+                "Content-Type": "audio/mulaw"
+            }
             
-            # Transcription avec la bonne syntaxe: .v1() ou .v2()
-            response = self.client.listen.v1().transcribe_file(
-                source, options
-            )
-            
-            # Parser la réponse
-            if hasattr(response, 'results'):
-                transcript = response.results.channels[0].alternatives[0].transcript
-            else:
-                transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
-            
-            return transcript.strip()
+            # Requête POST
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    self.url,
+                    params=params,
+                    headers=headers,
+                    content=audio_bytes
+                )
+                
+                if response.status_code != 200:
+                    print(f"❌ Deepgram API error: {response.status_code} - {response.text}")
+                    return ""
+                
+                # Parser JSON
+                data = response.json()
+                transcript = data['results']['channels'][0]['alternatives'][0]['transcript']
+                return transcript.strip()
         
         except Exception as e:
             print(f"❌ Deepgram Error: {e}")
