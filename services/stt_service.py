@@ -1,4 +1,4 @@
-from deepgram import DeepgramClient, PrerecordedOptions, FileSource
+from deepgram import DeepgramClient
 from config import settings
 import asyncio
 
@@ -16,35 +16,33 @@ class STTService:
         Ultra-rapide et précis (niveau ChatGPT)
         """
         try:
-            # Deepgram accepte directement le mulaw
-            # Pas besoin de conversion !
-            
             # Options de transcription
-            options = PrerecordedOptions(
-                model="nova-2",  # Modèle le plus récent et précis
-                language="fr",   # Français
-                smart_format=True,  # Ponctuation automatique
-                punctuate=True,
-                diarize=False,  # Pas besoin de distinguer les speakers
-                utterances=False
-            )
+            options = {
+                "model": "nova-2",
+                "language": "fr",
+                "smart_format": True,
+                "punctuate": True,
+            }
             
             # Préparer l'audio
-            payload: FileSource = {
+            payload = {
                 "buffer": audio_bytes,
             }
             
-            # Transcription (async)
-            response = await asyncio.to_thread(
-                self.client.listen.prerecorded.v("1").transcribe_file,
+            # Transcription
+            response = self.client.listen.rest.v("1").transcribe_file(
                 payload,
                 options
             )
             
             # Extraire le texte
-            if response.results and response.results.channels:
-                transcript = response.results.channels[0].alternatives[0].transcript
-                return transcript.strip()
+            if response and "results" in response:
+                channels = response["results"].get("channels", [])
+                if channels:
+                    alternatives = channels[0].get("alternatives", [])
+                    if alternatives:
+                        transcript = alternatives[0].get("transcript", "")
+                        return transcript.strip()
             
             return ""
         
