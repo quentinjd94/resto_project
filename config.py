@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Ollama
     OLLAMA_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "mistral:7b-instruct-q5_K_M"
-    OLLAMA_TIMEOUT: int = 15
+    OLLAMA_TIMEOUT: int = 30
     
     # ElevenLabs
     ELEVENLABS_API_KEY: str = ""

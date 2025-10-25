@@ -69,30 +69,6 @@ async def voice_webhook(request: Request):
     """
     Endpoint HTTP pour Twilio - Retourne TwiML pour démarrer le WebSocket
     """
-    # Récupérer les paramètres Twilio
-    form = await request.form()
-    call_sid = form.get("CallSid", "unknown")
-    
-    print(f"\n📞 Incoming call: {call_sid}")
-    
-    # TwiML pour connecter au WebSocket
-    # IMPORTANT: Remplace par ton URL ngrok
-    websocket_url = "wss://studentless-simone-nonpreventive.ngrok-free.dev/ws/voice/" + call_sid
-    
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Connect>
-        <Stream url="{websocket_url}" />
-    </Connect>
-</Response>"""
-    
-    return PlainTextResponse(content=twiml, media_type="application/xml")
-
-@app.post("/ws/voice")
-async def voice_webhook(request: Request):
-    """
-    Endpoint HTTP pour Twilio - Retourne TwiML pour démarrer le WebSocket
-    """
     form = await request.form()
     call_sid = form.get("CallSid", "unknown")
     
@@ -265,7 +241,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             duration = (datetime.now() - conversation_state["start_time"]).seconds
             print(f"📊 [{call_sid}] Duration: {duration}s, Exchanges: {len(conversation_state['history'])}")
             del active_calls[call_sid]
-            
+
 @app.get("/calls")
 async def list_calls():
     """Debug: appels actifs"""
