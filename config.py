@@ -11,13 +11,16 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "mistral:7b-instruct-q5_K_M"
     OLLAMA_TIMEOUT: int = 30
     
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+
     # ElevenLabs
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
     
     # AssemblyAI
     ASSEMBLYAI_API_KEY: str = ""
-    
+
     # Whisper
     WHISPER_MODEL: str = "large-v3"
     WHISPER_DEVICE: str = "cuda"

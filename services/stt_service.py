@@ -1,4 +1,4 @@
-import assemblyai as aai
+from openai import OpenAI
 from config import settings
 import tempfile
 import os
@@ -7,74 +7,45 @@ import audioop
 
 class STTService:
     def __init__(self):
-        if not settings.ASSEMBLYAI_API_KEY:
-            raise ValueError("ASSEMBLYAI_API_KEY not set in .env!")
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY not set!")
         
-        # Configurer AssemblyAI
-        aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
-        
-        # Config de transcription
-        self.config = aai.TranscriptionConfig(
-            language_code="fr",
-            punctuate=True,
-            format_text=True,
-            speech_model=aai.SpeechModel.best
-        )
-        
-        print("✅ AssemblyAI STT ready!")
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        print("✅ OpenAI Whisper ready!")
     
     async def transcribe(self, audio_bytes: bytes) -> str:
         """
-        Transcrit audio mulaw → texte français avec AssemblyAI
+        Transcrit avec Whisper API - Qualité parfaite
         """
         try:
-            # 1. Convertir mulaw → PCM linéaire 16-bit
+            # Convertir mulaw → WAV
             pcm_data = audioop.ulaw2lin(audio_bytes, 2)
+            pcm_16k, _ = audioop.ratecv(pcm_data, 2, 1, 8000, 16000, None)
             
-            # 2. Resample 8kHz → 16kHz (AssemblyAI préfère 16kHz+)
-            pcm_16k, _ = audioop.ratecv(
-                pcm_data,
-                2,      # 16-bit
-                1,      # mono
-                8000,   # input rate
-                16000,  # output rate
-                None
-            )
-            
-            # 3. Créer un fichier WAV temporaire
+            # Créer WAV temporaire
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+                with wave.open(tmp.name, 'wb') as wav:
+                    wav.setnchannels(1)
+                    wav.setsampwidth(2)
+                    wav.setframerate(16000)
+                    wav.writeframes(pcm_16k)
                 tmp_path = tmp.name
-                
-                with wave.open(tmp_path, 'wb') as wav_file:
-                    wav_file.setnchannels(1)        # Mono
-                    wav_file.setsampwidth(2)        # 16-bit
-                    wav_file.setframerate(16000)    # 16kHz
-                    wav_file.writeframes(pcm_16k)
             
             try:
-                # 4. Transcription
-                transcriber = aai.Transcriber(config=self.config)
-                transcript = transcriber.transcribe(tmp_path)
+                # Transcription Whisper API
+                with open(tmp_path, 'rb') as audio_file:
+                    transcript = self.client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="fr"
+                    )
                 
-                # Vérifier le statut
-                if transcript.status == aai.TranscriptStatus.error:
-                    print(f"❌ AssemblyAI Error: {transcript.error}")
-                    return ""
-                
-                # Retourner le texte
-                text = transcript.text.strip() if transcript.text else ""
-                return text
-            
+                return transcript.text.strip()
             finally:
-                # Nettoyer
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
+                os.unlink(tmp_path)
         
         except Exception as e:
-            print(f"❌ AssemblyAI Error: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Whisper API Error: {e}")
             return ""
 
-# Instance globale
 stt_service = STTService()
