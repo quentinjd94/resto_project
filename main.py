@@ -64,6 +64,30 @@ async def list_restaurants():
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/ws/voice")
+async def voice_webhook(request: Request):
+    """
+    Endpoint HTTP pour Twilio - Retourne TwiML pour démarrer le WebSocket
+    """
+    # Récupérer les paramètres Twilio
+    form = await request.form()
+    call_sid = form.get("CallSid", "unknown")
+    
+    print(f"\n📞 Incoming call: {call_sid}")
+    
+    # TwiML pour connecter au WebSocket
+    # IMPORTANT: Remplace par ton URL ngrok
+    websocket_url = "wss://studentless-simone-nonpreventive.ngrok-free.dev/ws/voice/" + call_sid
+    
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Connect>
+        <Stream url="{websocket_url}" />
+    </Connect>
+</Response>"""
+    
+    return Response(content=twiml, media_type="application/xml")
+
 @app.websocket("/ws/voice/{call_sid}")
 async def voice_handler(websocket: WebSocket, call_sid: str):
     """
