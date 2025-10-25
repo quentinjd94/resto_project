@@ -88,6 +88,28 @@ async def voice_webhook(request: Request):
     
     return Response(content=twiml, media_type="application/xml")
 
+@app.post("/ws/voice")
+async def voice_webhook(request: Request):
+    """
+    Endpoint HTTP pour Twilio - Retourne TwiML pour démarrer le WebSocket
+    """
+    form = await request.form()
+    call_sid = form.get("CallSid", "unknown")
+    
+    print(f"\n📞 Incoming call: {call_sid}")
+    
+    # IMPORTANT: Utilise ton URL ngrok actuelle
+    websocket_url = "wss://studentless-simone-nonpreventive.ngrok-free.dev/ws/voice/" + call_sid
+    
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Connect>
+        <Stream url="{websocket_url}" />
+    </Connect>
+</Response>"""
+    
+    return Response(content=twiml, media_type="application/xml")
+
 @app.websocket("/ws/voice/{call_sid}")
 async def voice_handler(websocket: WebSocket, call_sid: str):
     """
