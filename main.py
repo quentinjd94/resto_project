@@ -123,7 +123,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             "restaurant_name": restaurant.name,
             "history": [],
             "start_time": datetime.now(),
-            "audio_buffer": b""  # Buffer pour accumuler l'audio
+            "audio_buffer": b""
         }
         
         active_calls[call_sid] = conversation_state
@@ -181,7 +181,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 # Accumuler l'audio (Twilio envoie par petits chunks)
                 conversation_state["audio_buffer"] += audio_chunk
                 
-                # Traiter quand on a assez d'audio (~1 seconde = 8000 bytes)
+                # Traiter quand on a assez d'audio (~4 secondes = 32000 bytes)
                 if len(conversation_state["audio_buffer"]) >= 32000:
                     audio_to_process = conversation_state["audio_buffer"]
                     conversation_state["audio_buffer"] = b""
@@ -195,42 +195,47 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                     
                     print(f"👤 [{call_sid}] User: {user_text}")
                     
-                    # 4. LLM - Ollama STREAMING + TTS en parallèle
+                    # LLM - Ollama STREAMING + TTS en parallèle
                     print(f"🧠 [{call_sid}] Processing with streaming...")
-
-                    full_response = ""
-
-                    async for chunk in llm_service.query_stream(
-                        prompt=user_text,
-                        system_prompt=system_prompt,
-                        history=conversation_state["history"]
-                    ):
-                        print(f"🤖 [{call_sid}] Chunk: {chunk}")
-                        full_response += " " + chunk
-    
-                        # TTS du chunk immédiatement
-                        print(f"🔊 [{call_sid}] Synthesizing chunk...")
-                        audio_chunk = await tts_service.synthesize(chunk)
-    
-                        if audio_chunk and stream_sid:
-                            # Envoyer l'audio à Twilio IMMÉDIATEMENT
-                            await websocket.send_text(json.dumps({
-                            "event": "media",
-                            "streamSid": stream_sid,
-                            "media": {
-                                "payload": base64.b64encode(audio_chunk).decode('utf-8')
-                            }
-                        }))
-                        print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk)} bytes)")
-
-                print(f"🤖 [{call_sid}] Full response: {full_response}")
-
-                # Sauvegarder dans l'historique
-                conversation_state["history"].append({
-                    "user": user_text,
-                    "assistant": full_response.strip()
-                })
                     
+                    full_response = ""
+                    
+                    try:
+                        async for chunk in llm_service.query_stream(
+                            prompt=user_text,
+                            system_prompt=system_prompt,
+                            history=conversation_state["history"]
+                        ):
+                            print(f"🤖 [{call_sid}] Chunk: {chunk}")
+                            full_response += " " + chunk
+                            
+                            # TTS du chunk immédiatement
+                            print(f"🔊 [{call_sid}] Synthesizing chunk...")
+                            audio_chunk_tts = await tts_service.synthesize(chunk)
+                            
+                            if audio_chunk_tts and stream_sid:
+                                # Envoyer l'audio à Twilio IMMÉDIATEMENT
+                                await websocket.send_text(json.dumps({
+                                    "event": "media",
+                                    "streamSid": stream_sid,
+                                    "media": {
+                                        "payload": base64.b64encode(audio_chunk_tts).decode('utf-8')
+                                    }
+                                }))
+                                print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk_tts)} bytes)")
+                    
+                    except Exception as e:
+                        print(f"❌ [{call_sid}] Streaming error: {e}")
+                        full_response = "Désolé, service temporairement indisponible."
+                    
+                    print(f"🤖 [{call_sid}] Full response: {full_response}")
+                    
+                    # Sauvegarder dans l'historique
+                    conversation_state["history"].append({
+                        "user": user_text,
+                        "assistant": full_response.strip()
+                    })
+            
             # 3. STOP event
             elif event == "stop":
                 print(f"🔴 [{call_sid}] Stream stopped")
