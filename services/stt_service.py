@@ -1,64 +1,71 @@
-from faster_whisper import WhisperModel
+from elevenlabs import ElevenLabs
 from config import settings
-import io
-import numpy as np
-import wave
-import audioop
+import subprocess
+import tempfile
+import os
 
-class STTService:
+class TTSService:
     def __init__(self):
-        print(f"Loading Whisper {settings.WHISPER_MODEL}...")
-        self.model = WhisperModel(
-            settings.WHISPER_MODEL,
-            device=settings.WHISPER_DEVICE,
-            compute_type="float16"
-        )
-        print("✅ Whisper loaded!")
+        if not settings.ELEVENLABS_API_KEY:
+            raise ValueError("ELEVENLABS_API_KEY not set!")
+        
+        self.client = ElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
+        self.voice_id = settings.ELEVENLABS_VOICE_ID
+        print("✅ ElevenLabs TTS ready!")
     
-    async def transcribe(self, audio_bytes: bytes) -> str:
+    async def synthesize(self, text: str) -> bytes:
         """
-        Transcrit audio bytes → texte français
-        Twilio envoie en mulaw 8kHz, on doit convertir en PCM 16kHz
+        Convertit texte → audio mulaw pour Twilio
         """
         try:
-            # Twilio envoie en mulaw 8000 Hz mono
-            # On doit convertir en PCM linéaire
-            
-            # 1. Convertir mulaw → PCM linéaire 16-bit
-            pcm_data = audioop.ulaw2lin(audio_bytes, 2)  # 2 = 16-bit samples
-            
-            # 2. Resample 8kHz → 16kHz (Whisper préfère 16kHz)
-            pcm_16k, _ = audioop.ratecv(
-                pcm_data,
-                2,      # sample width (16-bit)
-                1,      # channels (mono)
-                8000,   # input rate
-                16000,  # output rate (16kHz)
-                None
+            # 1. Générer audio MP3 avec ElevenLabs
+            audio_generator = self.client.text_to_speech.convert(
+                text=text,
+                voice_id=self.voice_id,
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128"
             )
             
-            # 3. Convertir en numpy array float32 normalisé
-            audio_np = np.frombuffer(pcm_16k, dtype=np.int16).astype(np.float32) / 32768.0
+            # Collecter tous les chunks MP3
+            mp3_data = b"".join(audio_generator)
             
-            # 4. Transcription avec Whisper
-            segments, info = self.model.transcribe(
-                audio_np,
-                language="fr",
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500)
-            )
+            # 2. Convertir MP3 → mulaw 8kHz pour Twilio
+            # Utiliser ffmpeg via fichiers temporaires
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as mp3_file:
+                mp3_file.write(mp3_data)
+                mp3_path = mp3_file.name
             
-            # 5. Joindre tous les segments
-            text = " ".join([segment.text for segment in segments])
+            with tempfile.NamedTemporaryFile(suffix='.ulaw', delete=False) as mulaw_file:
+                mulaw_path = mulaw_file.name
             
-            return text.strip()
+            try:
+                # Convertir avec ffmpeg: MP3 → mulaw 8kHz mono
+                subprocess.run([
+                    'ffmpeg',
+                    '-i', mp3_path,
+                    '-ar', '8000',      # Sample rate 8kHz
+                    '-ac', '1',         # Mono
+                    '-f', 'mulaw',      # Format mulaw
+                    '-y',               # Overwrite
+                    mulaw_path
+                ], check=True, capture_output=True)
+                
+                # Lire le fichier mulaw
+                with open(mulaw_path, 'rb') as f:
+                    mulaw_data = f.read()
+                
+                return mulaw_data
+            
+            finally:
+                # Nettoyer les fichiers temporaires
+                os.unlink(mp3_path)
+                os.unlink(mulaw_path)
         
         except Exception as e:
-            print(f"❌ STT Error: {e}")
+            print(f"❌ TTS Error: {e}")
             import traceback
             traceback.print_exc()
-            return ""
+            return b""
 
 # Instance globale
-stt_service = STTService()
+tts_service = TTSService()
