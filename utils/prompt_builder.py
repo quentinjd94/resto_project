@@ -9,7 +9,6 @@ import base64
 from config import settings
 from database import db
 from services import stt_service, tts_service, llm_service
-from utils.prompt_builder import build_dynamic_prompt
 
 app = FastAPI(title="Pizza Agent AI - Multi Restaurant")
 
