@@ -1,6 +1,5 @@
 from deepgram import DeepgramClient
 from config import settings
-import asyncio
 
 class STTService:
     def __init__(self):
@@ -13,43 +12,24 @@ class STTService:
     async def transcribe(self, audio_bytes: bytes) -> str:
         """
         Transcrit audio mulaw → texte français avec Deepgram
-        Ultra-rapide et précis (niveau ChatGPT)
         """
         try:
-            # Options de transcription
-            options = {
-                "model": "nova-2",
-                "language": "fr",
-                "smart_format": True,
-                "punctuate": True,
-            }
-            
-            # Préparer l'audio
-            payload = {
-                "buffer": audio_bytes,
-            }
-            
-            # Transcription
-            response = self.client.listen.rest.v("1").transcribe_file(
-                payload,
-                options
+            # Utiliser la méthode synchrone puis async wrapper
+            response = self.client.listen.prerecorded.v("1").transcribe_file(
+                {"buffer": audio_bytes},
+                {
+                    "model": "nova-2",
+                    "language": "fr",
+                    "smart_format": True,
+                }
             )
             
-            # Extraire le texte
-            if response and "results" in response:
-                channels = response["results"].get("channels", [])
-                if channels:
-                    alternatives = channels[0].get("alternatives", [])
-                    if alternatives:
-                        transcript = alternatives[0].get("transcript", "")
-                        return transcript.strip()
-            
-            return ""
+            # Parser la réponse
+            transcript = response.results.channels[0].alternatives[0].transcript
+            return transcript.strip()
         
         except Exception as e:
-            print(f"❌ Deepgram STT Error: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Deepgram Error: {e}")
             return ""
 
 # Instance globale
