@@ -66,9 +66,9 @@ class Database:
             postal_code=row[4],
             phone=row[5],
             twilio_phone="",
-            owner_name=row[6],
-            owner_phone=row[7],
-            owner_email=row[8],
+            owner_name=row[6] or "",
+            owner_phone=row[7] or "",
+            owner_email=row[8] or "",
             custom_prompt=row[9],
             is_active=bool(row[10]),
             assistant_id=row[11]
