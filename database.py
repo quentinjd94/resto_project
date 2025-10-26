@@ -15,8 +15,24 @@ class Database:
         self.init_db()
     
     def get_connection(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # Permet d'accéder aux colonnes par nom
+        """Récupère une connexion à la base de données"""
+        import os
+    
+        db_path = os.path.join(os.path.dirname(__file__), 'pizza.db')
+        print(f"🔍 DB Path: {db_path}")
+        print(f"🔍 DB exists: {os.path.exists(db_path)}")
+    
+        if os.path.exists(db_path):
+            print(f"🔍 DB size: {os.path.getsize(db_path)} bytes")
+    
+        conn = sqlite3.connect(db_path)
+    
+        # Test rapide
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM restaurants")
+        count = cursor.fetchone()[0]
+        print(f"🔍 Restaurants in DB: {count}")
+    
         return conn
 
     def get_restaurant_by_id(self, restaurant_id: str):
