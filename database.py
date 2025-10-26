@@ -24,20 +24,20 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
     
-        cursor.execute("""
-            SELECT id, name, address, city, postal_code, phone, 
-                   owner_name, owner_phone, owner_email, custom_prompt, 
-                   is_active, assistant_id
-            FROM restaurants 
-            WHERE id = ?
-        """, (restaurant_id,))
+        # Utiliser * pour tout récupérer
+        cursor.execute("SELECT * FROM restaurants WHERE id = ?", (restaurant_id,))
     
         row = cursor.fetchone()
+    
+        if row:
+            print(f"🔍 Row data: {row}")
+            print(f"🔍 Row length: {len(row)}")
+    
         conn.close()
     
         if not row:
             return None
-    
+        
         from models import Restaurant
         return Restaurant(
             id=row[0],
@@ -54,6 +54,7 @@ class Database:
             is_active=bool(row[10]),
             assistant_id=row[11]
         )
+    
     def init_db(self):
         """Créer toutes les tables"""
         conn = self.get_connection()
