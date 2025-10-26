@@ -98,7 +98,7 @@ cursor.execute("""
     "Fresnes",
     "94260",
     "+33100000000",  # À remplacer
-    "TON_ASSISTANT_ID_ICI",  # À remplacer
+    "asst_7eNywHmjWAEqYHLOrcG8V2Nt",  # À remplacer
     1
 ))
 
