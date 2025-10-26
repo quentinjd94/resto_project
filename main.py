@@ -172,7 +172,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 conversation_state["audio_buffer"] += audio_chunk
                 
                 # Traiter quand on a assez d'audio
-                if len(conversation_state["audio_buffer"]) >= 32000:
+                if len(conversation_state["audio_buffer"]) >= 16000:
                     audio_to_process = conversation_state["audio_buffer"]
                     conversation_state["audio_buffer"] = b""
                     
