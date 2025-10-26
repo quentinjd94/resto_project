@@ -35,8 +35,8 @@ async def health():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "ollama": settings.OLLAMA_MODEL,
-        "whisper": settings.WHISPER_MODEL,
+        #"ollama": settings.OLLAMA_MODEL,
+        #"whisper": settings.WHISPER_MODEL,
         "tts": "elevenlabs",
         "restaurants": count
     }
@@ -265,7 +265,6 @@ async def list_calls():
 if __name__ == "__main__":
     print("🚀 Starting Pizza Agent AI - Multi Restaurant...")
     print(f"📍 Server: {settings.HOST}:{settings.PORT}")
-    print(f"🤖 LLM: {settings.OLLAMA_MODEL}")
     print(f"🎤 STT: Whisper {settings.WHISPER_MODEL}")
     print(f"🔊 TTS: ElevenLabs")
     print(f"🗄️  Database: SQLite")
