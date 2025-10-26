@@ -45,22 +45,36 @@ class STTService:
                         prompt="Commande de restaurant, poke bowl, sushi"  # ← Aide le contexte
                     )
             
-                result = transcript.text.strip()
-                print(f"🎤 Transcription: '{result}'")
-            
-                # Filtrer les parasites
-                if "sous-titr" in result.lower() or len(result) < 3:
-                    print(f"⚠️ Transcription rejetée (parasite)")
-                    return ""
-            
-                return result
-            finally:
-                os.unlink(tmp_path)
-    
-        except Exception as e:
-            print(f"❌ Whisper API Error: {e}")
-            import traceback
-            traceback.print_exc()
-            return ""
+               result = transcript.text.strip()
+               print(f"🎤 Transcription brute: '{result}'")
+
+               # FILTRES ANTI-PARASITES
+               parasites = [
+               "sous-titr",
+               "youtube",
+               "abonner",
+               "vidéo",
+               "chaîne",
+               "pokemonday",
+               "merci d'avoir regardé",
+               "à la prochaine"
+               ]
+
+               # Si contient un parasite → rejeter
+               if any(p in result.lower() for p in parasites):
+                   print(f"⚠️ Parasite détecté, rejeté")
+                   return ""
+
+               # Si trop long (>100 caractères) → probablement du bruit
+               if len(result) > 100:
+                   print(f"⚠️ Texte trop long, rejeté")
+                   return ""
+
+               # Si trop court
+               if len(result) < 3:
+                   print(f"⚠️ Texte trop court, rejeté")
+                   return ""
+
+               return result
             
 stt_service = STTService()
