@@ -18,14 +18,10 @@ class STTService:
         Transcrit avec Whisper API
         """
         try:
-            print(f"🎤 Audio size: {len(audio_bytes)} bytes")
-        
             # Convertir mulaw → WAV
             pcm_data = audioop.ulaw2lin(audio_bytes, 2)
             pcm_16k, _ = audioop.ratecv(pcm_data, 2, 1, 8000, 16000, None)
-        
-            print(f"🎤 PCM size: {len(pcm_16k)} bytes")
-        
+            
             # Créer WAV temporaire
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
                 with wave.open(tmp.name, 'wb') as wav:
@@ -34,7 +30,7 @@ class STTService:
                     wav.setframerate(16000)
                     wav.writeframes(pcm_16k)
                 tmp_path = tmp.name
-        
+            
             try:
                 # Transcription Whisper API
                 with open(tmp_path, 'rb') as audio_file:
@@ -42,39 +38,47 @@ class STTService:
                         model="whisper-1",
                         file=audio_file,
                         language="fr",
-                        prompt="Commande de restaurant, poke bowl, sushi"  # ← Aide le contexte
+                        prompt="Commande restaurant poke bowl sushi"
                     )
-            
-            result = transcript.text.strip()
-            print(f"🎤 Transcription brute: '{result}'")
+                
+                result = transcript.text.strip()
+                print(f"🎤 Transcription brute: '{result}'")
+                
+                # FILTRES ANTI-PARASITES
+                parasites = [
+                    "sous-titr",
+                    "youtube",
+                    "abonner",
+                    "vidéo",
+                    "chaîne",
+                    "pokemonday",
+                    "merci d'avoir regardé",
+                    "à la prochaine"
+                ]
+                
+                # Si contient un parasite → rejeter
+                if any(p in result.lower() for p in parasites):
+                    print(f"⚠️ Parasite détecté, rejeté")
+                    return ""
+                
+                # Si trop long
+                if len(result) > 100:
+                    print(f"⚠️ Texte trop long, rejeté")
+                    return ""
+                
+                # Si trop court
+                if len(result) < 3:
+                    print(f"⚠️ Texte trop court, rejeté")
+                    return ""
+                
+                return result
+            finally:
+                os.unlink(tmp_path)
+        
+        except Exception as e:
+            print(f"❌ Whisper API Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return ""
 
-            # FILTRES ANTI-PARASITES
-            parasites = [
-                "sous-titr",
-                "youtube",
-                "abonner",
-                "vidéo",
-                "chaîne",
-                "pokemonday",
-                "merci d'avoir regardé",
-                "à la prochaine"
-            ]
-
-            # Si contient un parasite → rejeter
-            if any(p in result.lower() for p in parasites):
-                print(f"⚠️ Parasite détecté, rejeté")
-                return ""
-            
-            # Si trop long (>100 caractères) → probablement du bruit
-            if len(result) > 100:
-                print(f"⚠️ Texte trop long, rejeté")
-                return ""
-
-            # Si trop court
-            if len(result) < 3:
-                print(f"⚠️ Texte trop court, rejeté")
-                return ""
-
-            return result
-            
 stt_service = STTService()
