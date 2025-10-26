@@ -18,7 +18,42 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row  # Permet d'accéder aux colonnes par nom
         return conn
+
+    def get_restaurant_by_id(self, restaurant_id: str):
+        """Récupère un restaurant par ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
     
+        cursor.execute("""
+            SELECT id, name, address, city, postal_code, phone, 
+                   owner_name, owner_phone, owner_email, custom_prompt, 
+                   is_active, assistant_id
+            FROM restaurants 
+            WHERE id = ?
+        """, (restaurant_id,))
+    
+        row = cursor.fetchone()
+        conn.close()
+    
+        if not row:
+            return None
+    
+        from models import Restaurant
+        return Restaurant(
+            id=row[0],
+            name=row[1],
+            address=row[2],
+            city=row[3],
+            postal_code=row[4],
+            phone=row[5],
+            twilio_phone="",
+            owner_name=row[6],
+            owner_phone=row[7],
+            owner_email=row[8],
+            custom_prompt=row[9],
+            is_active=bool(row[10]),
+            assistant_id=row[11]
+        )
     def init_db(self):
         """Créer toutes les tables"""
         conn = self.get_connection()
