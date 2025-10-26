@@ -23,7 +23,7 @@ class STTService:
                         "Content-Type": "audio/mulaw"
                     },
                     params={
-                        "model": "nova-2-phonecall",
+                        "model": "nova-2-general",
                         "language": "fr",
                         "smart_format": "true",
                         "encoding": "mulaw",
