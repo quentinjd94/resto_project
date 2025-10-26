@@ -21,25 +21,28 @@ class Database:
 
     def get_restaurant_by_id(self, restaurant_id: str):
         """Récupère un restaurant par ID"""
+        print(f"🔍 Searching for restaurant: {restaurant_id}")
+    
         conn = self.get_connection()
         cursor = conn.cursor()
     
-        # Utiliser * pour tout récupérer
         cursor.execute("SELECT * FROM restaurants WHERE id = ?", (restaurant_id,))
     
         row = cursor.fetchone()
     
-        if row:
-            print(f"🔍 Row data: {row}")
-            print(f"🔍 Row length: {len(row)}")
+        print(f"🔍 Found row: {row}")
     
         conn.close()
     
         if not row:
+            print(f"❌ No restaurant found with id: {restaurant_id}")
             return None
-        
+    
         from models import Restaurant
-        return Restaurant(
+    
+        print(f"✅ Creating Restaurant object...")
+    
+        resto = Restaurant(
             id=row[0],
             name=row[1],
             address=row[2],
@@ -54,6 +57,10 @@ class Database:
             is_active=bool(row[10]),
             assistant_id=row[11]
         )
+    
+    print(f"✅ Restaurant created: {resto.name}, Assistant: {resto.assistant_id}")
+    
+    return resto
     
     def init_db(self):
         """Créer toutes les tables"""
