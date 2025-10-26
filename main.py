@@ -89,38 +89,31 @@ async def voice_webhook(request: Request):
 @app.websocket("/ws/voice/{call_sid}")
 async def voice_handler(websocket: WebSocket, call_sid: str):
     """
-    WebSocket handler pour Twilio Media Streams
+    WebSocket handler pour Twilio Media Streams avec Assistants API
     """
     await websocket.accept()
     print(f"\n🟢 [{call_sid}] Call connected")
     
     try:
-        # Récupérer le premier restaurant (pour test)
-        restaurant = db.get_restaurant_by_phone("+33123456789")
+        # Récupérer le restaurant (pour l'instant hardcodé à Mama's Secret)
+        restaurant = db.get_restaurant_by_id("resto_mamas")
         
-        if not restaurant:
-            print(f"❌ [{call_sid}] No restaurant found")
+        if not restaurant or not restaurant.assistant_id:
+            print(f"❌ [{call_sid}] No restaurant or assistant configured")
             await websocket.close()
             return
         
         print(f"🏪 [{call_sid}] Restaurant: {restaurant.name}")
-        
-        # Charger contexte
-        menu = db.get_menu(restaurant.id)
-        zones = db.get_delivery_zones(restaurant.id)
-        hours = db.get_opening_hours(restaurant.id)
-        
-        print(f"📋 [{call_sid}] Loaded: {len(menu)} items, {len(zones)} zones")
-        
-        # Construire prompt
-        system_prompt = build_dynamic_prompt(restaurant, menu, zones, hours)
+        print(f"🤖 [{call_sid}] Assistant: {restaurant.assistant_id}")
         
         # State
         stream_sid = None
+        thread_id = None
         conversation_state = {
             "call_sid": call_sid,
             "restaurant_id": restaurant.id,
-            "restaurant_name": restaurant.name,
+            "assistant_id": restaurant.assistant_id,
+            "thread_id": None,
             "history": [],
             "start_time": datetime.now(),
             "audio_buffer": b""
@@ -129,7 +122,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
         active_calls[call_sid] = conversation_state
         
         # Message de bienvenue
-        welcome = f"{restaurant.name} bonsoir ! Vous souhaitez commander à emporter ou en livraison ?"
+        welcome = f"{restaurant.name} bonsoir ! C'est pour emporter ou en livraison ?"
         print(f"🤖 [{call_sid}] AI: {welcome}")
         
         # Main loop
@@ -146,7 +139,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             data = json.loads(message)
             event = data.get("event")
             
-            # 1. START event - récupérer streamSid
+            # 1. START event
             if event == "start":
                 stream_sid = data["start"]["streamSid"]
                 print(f"🎬 [{call_sid}] Stream started: {stream_sid}")
@@ -163,7 +156,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                     }))
                     print(f"📢 [{call_sid}] Welcome message sent")
             
-            # 2. MEDIA event - audio entrant
+            # 2. MEDIA event
             elif event == "media":
                 if not stream_sid:
                     continue
@@ -171,50 +164,52 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 payload = data["media"]["payload"]
                 track = data["media"].get("track", "inbound")
                 
-                # On ne traite que l'audio inbound (utilisateur)
                 if track != "inbound":
                     continue
                 
-                # Décoder l'audio mulaw
+                # Accumuler audio
                 audio_chunk = base64.b64decode(payload)
-                
-                # Accumuler l'audio (Twilio envoie par petits chunks)
                 conversation_state["audio_buffer"] += audio_chunk
                 
-                # Traiter quand on a assez d'audio (~4 secondes = 32000 bytes)
-                if len(conversation_state["audio_buffer"]) >= 8000:
+                # Traiter quand on a assez d'audio
+                if len(conversation_state["audio_buffer"]) >= 32000:
                     audio_to_process = conversation_state["audio_buffer"]
                     conversation_state["audio_buffer"] = b""
                     
                     # STT
-                    print(f"🎤 [{call_sid}] Transcribing {len(audio_to_process)} bytes...")
+                    print(f"🎤 [{call_sid}] Transcribing...")
                     user_text = await stt_service.transcribe(audio_to_process)
                     
-                    if not user_text or len(user_text) < 3 or "sous-titrage" in user_text.lower():
+                    if not user_text or len(user_text) < 3:
                         continue
                     
                     print(f"👤 [{call_sid}] User: {user_text}")
                     
-                    # LLM - Ollama STREAMING + TTS en parallèle
-                    print(f"🧠 [{call_sid}] Processing with streaming...")
+                    # LLM avec Assistants API
+                    print(f"🧠 [{call_sid}] Processing with Assistant...")
                     
                     full_response = ""
                     
                     try:
                         async for chunk in llm_service.query_stream(
                             prompt=user_text,
-                            system_prompt=system_prompt,
-                            history=conversation_state["history"]
+                            restaurant_id=restaurant.id,
+                            assistant_id=restaurant.assistant_id,
+                            thread_id=conversation_state.get("thread_id")
                         ):
+                            # Si c'est un function call
+                            if chunk == "[FUNCTION_CALL]":
+                                print(f"⚙️ [{call_sid}] Function call detected")
+                                # TODO: gérer les function calls
+                                continue
+                            
                             print(f"🤖 [{call_sid}] Chunk: {chunk}")
                             full_response += " " + chunk
                             
-                            # TTS du chunk immédiatement
-                            print(f"🔊 [{call_sid}] Synthesizing chunk...")
+                            # TTS immédiat
                             audio_chunk_tts = await tts_service.synthesize(chunk)
                             
                             if audio_chunk_tts and stream_sid:
-                                # Envoyer l'audio à Twilio IMMÉDIATEMENT
                                 await websocket.send_text(json.dumps({
                                     "event": "media",
                                     "streamSid": stream_sid,
@@ -222,15 +217,15 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                                         "payload": base64.b64encode(audio_chunk_tts).decode('utf-8')
                                     }
                                 }))
-                                print(f"✅ [{call_sid}] Chunk sent ({len(audio_chunk_tts)} bytes)")
+                                print(f"✅ [{call_sid}] Chunk sent")
                     
                     except Exception as e:
-                        print(f"❌ [{call_sid}] Streaming error: {e}")
-                        full_response = "Désolé, service temporairement indisponible."
+                        print(f"❌ [{call_sid}] Assistant error: {e}")
+                        full_response = "Désolé, problème technique."
                     
-                    print(f"🤖 [{call_sid}] Full response: {full_response}")
+                    print(f"🤖 [{call_sid}] Full: {full_response}")
                     
-                    # Sauvegarder dans l'historique
+                    # Sauvegarder historique
                     conversation_state["history"].append({
                         "user": user_text,
                         "assistant": full_response.strip()
@@ -250,9 +245,8 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
     finally:
         if call_sid in active_calls:
             duration = (datetime.now() - conversation_state["start_time"]).seconds
-            print(f"📊 [{call_sid}] Duration: {duration}s, Exchanges: {len(conversation_state['history'])}")
+            print(f"📊 [{call_sid}] Duration: {duration}s")
             del active_calls[call_sid]
-
 @app.get("/calls")
 async def list_calls():
     """Debug: appels actifs"""
