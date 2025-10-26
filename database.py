@@ -58,9 +58,9 @@ class Database:
             assistant_id=row[11]
         )
     
-    print(f"✅ Restaurant created: {resto.name}, Assistant: {resto.assistant_id}")
+        print(f"✅ Restaurant created: {resto.name}, Assistant: {resto.assistant_id}")
     
-    return resto
+        return resto
     
     def init_db(self):
         """Créer toutes les tables"""
