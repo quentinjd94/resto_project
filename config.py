@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     OPENAI_API_KEY: str = ""
-
+    MAMA_ASSISTANT_ID: str = ""
     # ElevenLabs
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
