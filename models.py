@@ -23,6 +23,7 @@ class Restaurant(BaseModel):
     city: str
     custom_prompt: Optional[str] = None
     is_active: bool = True
+    assistant_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
 # ===== MENU =====
