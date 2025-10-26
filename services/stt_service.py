@@ -4,6 +4,7 @@ import tempfile
 import os
 import wave
 import audioop
+import webrtcvad
 
 class STTService:
     def __init__(self):
@@ -21,6 +22,35 @@ class STTService:
             # Convertir mulaw → WAV
             pcm_data = audioop.ulaw2lin(audio_bytes, 2)
             pcm_16k, _ = audioop.ratecv(pcm_data, 2, 1, 8000, 16000, None)
+
+            # VAD - Vérifier si c'est de la vraie voix
+            vad = webrtcvad.Vad(3)  # Agressivité max
+        
+            # Découper en frames de 30ms
+            frame_duration = 30  # ms
+            frame_size = int(16000 * frame_duration / 1000) * 2  # bytes
+        
+            frames_with_voice = 0
+            total_frames = 0
+        
+            for i in range(0, len(pcm_16k) - frame_size, frame_size):
+                frame = pcm_16k[i:i + frame_size]
+                if len(frame) == frame_size:
+                    total_frames += 1
+                    try:
+                        if vad.is_speech(frame, 16000):
+                            frames_with_voice += 1
+                    except:
+                        pass
+        
+            # Si moins de 30% de voix → rejeter
+            if total_frames > 0:
+                voice_ratio = frames_with_voice / total_frames
+                print(f"🎤 Voice ratio: {voice_ratio:.2%}")
+            
+                if voice_ratio < 0.3:
+                    print(f"⚠️ Pas assez de voix détectée, rejeté")
+                    return ""
             
             # Créer WAV temporaire
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
