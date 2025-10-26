@@ -45,36 +45,36 @@ class STTService:
                         prompt="Commande de restaurant, poke bowl, sushi"  # ← Aide le contexte
                     )
             
-               result = transcript.text.strip()
-               print(f"🎤 Transcription brute: '{result}'")
+            result = transcript.text.strip()
+            print(f"🎤 Transcription brute: '{result}'")
 
-               # FILTRES ANTI-PARASITES
-               parasites = [
-               "sous-titr",
-               "youtube",
-               "abonner",
-               "vidéo",
-               "chaîne",
-               "pokemonday",
-               "merci d'avoir regardé",
-               "à la prochaine"
-               ]
+            # FILTRES ANTI-PARASITES
+            parasites = [
+                "sous-titr",
+                "youtube",
+                "abonner",
+                "vidéo",
+                "chaîne",
+                "pokemonday",
+                "merci d'avoir regardé",
+                "à la prochaine"
+            ]
 
-               # Si contient un parasite → rejeter
-               if any(p in result.lower() for p in parasites):
-                   print(f"⚠️ Parasite détecté, rejeté")
-                   return ""
+            # Si contient un parasite → rejeter
+            if any(p in result.lower() for p in parasites):
+                print(f"⚠️ Parasite détecté, rejeté")
+                return ""
+            
+            # Si trop long (>100 caractères) → probablement du bruit
+            if len(result) > 100:
+                print(f"⚠️ Texte trop long, rejeté")
+                return ""
 
-               # Si trop long (>100 caractères) → probablement du bruit
-               if len(result) > 100:
-                   print(f"⚠️ Texte trop long, rejeté")
-                   return ""
+            # Si trop court
+            if len(result) < 3:
+                print(f"⚠️ Texte trop court, rejeté")
+                return ""
 
-               # Si trop court
-               if len(result) < 3:
-                   print(f"⚠️ Texte trop court, rejeté")
-                   return ""
-
-               return result
+            return result
             
 stt_service = STTService()
