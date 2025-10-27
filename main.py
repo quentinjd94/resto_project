@@ -117,7 +117,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             "history": [],
             "start_time": datetime.now(),
             "audio_buffer": b"",
-            "buffer_size": 32000,
+            "buffer_size": 48000,
             "waiting_for": None
         }
         
@@ -178,7 +178,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
 
                 # Si on attend quelque chose de spécifique, on attend plus longtemps
                 if conversation_state.get("waiting_for") in ["phone", "address"]:
-                    buffer_threshold = 56000  # 7 secondes pour numéro/adresse complet
+                    buffer_threshold = 72000  # 7 secondes pour numéro/adresse complet
                     print(f"⏳ Attente prolongée pour {conversation_state.get('waiting_for')}")
                 
                 if len(conversation_state["audio_buffer"]) >= 24000:
