@@ -172,7 +172,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 conversation_state["audio_buffer"] += audio_chunk
                 
                 # Traiter quand on a assez d'audio
-                if len(conversation_state["audio_buffer"]) >= 16000:
+                if len(conversation_state["audio_buffer"]) >= 24000:
                     audio_to_process = conversation_state["audio_buffer"]
                     conversation_state["audio_buffer"] = b""
                     
@@ -191,24 +191,29 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                     full_response = ""
                     
                     try:
-                        async for chunk in llm_service.query_stream(
+                        async for chunk_data in llm_service.query_stream(
                             prompt=user_text,
-                            restaurant_id=restaurant.id,
-                            assistant_id=restaurant.assistant_id,
-                            thread_id=conversation_state.get("thread_id")
+                                restaurant_id=restaurant.id,
+                                assistant_id=restaurant.assistant_id,
+                                thread_id=conversation_state.get("thread_id")
                         ):
+                            chunk, returned_thread_id = chunk_data
+    
+                            # Sauvegarder le thread_id
+                              if returned_thread_id:
+                                conversation_state["thread_id"] = returned_thread_id
+    
                             # Si c'est un function call
                             if chunk == "[FUNCTION_CALL]":
                                 print(f"⚙️ [{call_sid}] Function call detected")
-                                # TODO: gérer les function calls
                                 continue
-                            
+    
                             print(f"🤖 [{call_sid}] Chunk: {chunk}")
                             full_response += " " + chunk
-                            
+    
                             # TTS immédiat
                             audio_chunk_tts = await tts_service.synthesize(chunk)
-                            
+    
                             if audio_chunk_tts and stream_sid:
                                 await websocket.send_text(json.dumps({
                                     "event": "media",
