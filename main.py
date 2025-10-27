@@ -117,6 +117,8 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             "history": [],
             "start_time": datetime.now(),
             "audio_buffer": b""
+            "buffer_size": 32000,
+            "waiting_for": None
         }
         
         active_calls[call_sid] = conversation_state
@@ -172,6 +174,8 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 conversation_state["audio_buffer"] += audio_chunk
                 
                 # Traiter quand on a assez d'audio
+                buffer_threshold = conversation_state.get("buffer_size", 32000)
+                
                 if len(conversation_state["audio_buffer"]) >= 24000:
                     audio_to_process = conversation_state["audio_buffer"]
                     conversation_state["audio_buffer"] = b""
@@ -229,7 +233,20 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                         full_response = "Désolé, problème technique."
                     
                     print(f"🤖 [{call_sid}] Full: {full_response}")
-                    
+
+                    # Détecter si on attend un numéro de téléphone
+                    if "numéro" in full_response.lower() and "téléphone" in full_response.lower():
+                        conversation_state["buffer_size"] = 48000  # 6 secondes pour le numéro
+                        conversation_state["waiting_for"] = "phone"
+                            print(f"📞 Buffer étendu pour numéro de téléphone")
+                    elif "adresse" in full_response.lower() or "rue" in full_response.lower():
+                        conversation_state["buffer_size"] = 48000  # 6 secondes pour adresse
+                        conversation_state["waiting_for"] = "address"
+                            print(f"📍 Buffer étendu pour adresse")
+                    else:
+                        conversation_state["buffer_size"] = 32000  # Retour normal
+                        conversation_state["waiting_for"] = None
+                        
                     # Sauvegarder historique
                     conversation_state["history"].append({
                         "user": user_text,
