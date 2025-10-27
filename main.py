@@ -200,7 +200,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                             chunk, returned_thread_id = chunk_data
     
                             # Sauvegarder le thread_id
-                              if returned_thread_id:
+                            if returned_thread_id:
                                 conversation_state["thread_id"] = returned_thread_id
     
                             # Si c'est un function call
