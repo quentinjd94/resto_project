@@ -91,7 +91,15 @@ class LLMService:
                 
                     # Function calls
                     elif event.event == 'thread.run.requires_action':
-                        yield ("[FUNCTION_CALL]", thread_id)
+                        # Récupérer les tool calls demandés
+                        run_id = event.data.id
+                        tool_calls = event.data.required_action.submit_tool_outputs.tool_calls
+    
+                        print(f"⚙️ Functions demandées: {[tc.function.name for tc in tool_calls]}")
+    
+                        # Pour l'instant, yield juste le signal
+                        for tool_call in tool_calls:
+                            yield ("[FUNCTION_CALL]", thread_id)
             
                 # Yield reste
                 if buffer.strip():
