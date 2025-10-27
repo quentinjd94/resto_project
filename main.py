@@ -175,6 +175,11 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                 
                 # Traiter quand on a assez d'audio
                 buffer_threshold = conversation_state.get("buffer_size", 32000)
+
+                # Si on attend quelque chose de spécifique, on attend plus longtemps
+                if conversation_state.get("waiting_for") in ["phone", "address"]:
+                buffer_threshold = 56000  # 7 secondes pour numéro/adresse complet
+                print(f"⏳ Attente prolongée pour {conversation_state.get('waiting_for')}")
                 
                 if len(conversation_state["audio_buffer"]) >= 24000:
                     audio_to_process = conversation_state["audio_buffer"]
