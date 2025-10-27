@@ -116,7 +116,7 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
             "thread_id": None,
             "history": [],
             "start_time": datetime.now(),
-            "audio_buffer": b""
+            "audio_buffer": b"",
             "buffer_size": 32000,
             "waiting_for": None
         }
