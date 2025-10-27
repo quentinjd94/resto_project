@@ -208,8 +208,12 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                                 conversation_state["thread_id"] = returned_thread_id
     
                             # Si c'est un function call
-                            if chunk == "[FUNCTION_CALL]":
-                                print(f"⚙️ [{call_sid}] Function call detected")
+                            if chunk.startswith("[FUNCTION_CALL"):
+                                function_name = chunk.split(":")[1].replace("]", "")
+                                print(f"⚙️ [{call_sid}] Executing function: {function_name}")
+    
+                                # Pour l'instant, ignorer (on implémentera après)
+                                # TODO: Appeler get_menu(), check_delivery_zone(), etc.
                                 continue
     
                             print(f"🤖 [{call_sid}] Chunk: {chunk}")
