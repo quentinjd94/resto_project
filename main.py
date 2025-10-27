@@ -214,15 +214,20 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
     
                             # Si c'est un function call
                             if chunk.startswith("[FUNCTION_CALL"):
-                                function_name = chunk.split(":")[1].replace("]", "")
-                                print(f"⚙️ [{call_sid}] Executing function: {function_name}")
-    
-                                # Pour l'instant, ignorer (on implémentera après)
-                                # TODO: Appeler get_menu(), check_delivery_zone(), etc.
-                                continue
-    
-                            print(f"🤖 [{call_sid}] Chunk: {chunk}")
-                            full_response += " " + chunk
+                                try:
+                                    # Extraire le JSON
+                                    json_start = chunk.index("{")
+                                    json_end = chunk.rindex("}") + 1
+                                    function_data = json.loads(chunk[json_start:json_end])
+         
+                                    function_name = function_data["name"]
+                                    print(f"⚙️ [{call_sid}] Executing: {function_name}")
+        
+                                    # Pour l'instant, skip (on implémente après)
+                                    continue
+                                except Exception as e:
+                                    print(f"❌ Function parse error: {e}")
+                                    continue
     
                             # TTS immédiat
                             audio_chunk_tts = await tts_service.synthesize(chunk)
