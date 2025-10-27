@@ -238,11 +238,11 @@ async def voice_handler(websocket: WebSocket, call_sid: str):
                     if "numéro" in full_response.lower() and "téléphone" in full_response.lower():
                         conversation_state["buffer_size"] = 48000  # 6 secondes pour le numéro
                         conversation_state["waiting_for"] = "phone"
-                            print(f"📞 Buffer étendu pour numéro de téléphone")
+                        print(f"📞 Buffer étendu pour numéro de téléphone")
                     elif "adresse" in full_response.lower() or "rue" in full_response.lower():
                         conversation_state["buffer_size"] = 48000  # 6 secondes pour adresse
                         conversation_state["waiting_for"] = "address"
-                            print(f"📍 Buffer étendu pour adresse")
+                        print(f"📍 Buffer étendu pour adresse")
                     else:
                         conversation_state["buffer_size"] = 32000  # Retour normal
                         conversation_state["waiting_for"] = None
